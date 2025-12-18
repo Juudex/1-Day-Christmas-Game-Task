@@ -1,8 +1,9 @@
-import React, { useState, useRef, useEffect, useMemo, forwardRef, useImperativeHandle } from 'react'
+import React, { useState, useRef, useEffect, useMemo, forwardRef, useImperativeHandle, memo } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { useStore } from '../store'
-import { Tree, Rock, Gift, MountainSide } from './Obstacles'
-import { SEGMENT_LENGTH, LANE_WIDTH } from '../constants'
+import { Rock, Snowman, CandyCaneArch, Gift, AbilityBox, MountainSide, ForestSide, CandySide, MountainPeakSide } from './Obstacles'
+import { SEGMENT_LENGTH, LANE_WIDTH, PLAYER_HITBOX, OBSTACLE_HITBOX, GIFT_HITBOX, ARCH_HITBOX } from '../constants'
+import { lerp } from 'three/src/math/MathUtils'
 
 const SEGMENT_COUNT = 10
 
@@ -10,13 +11,12 @@ function randomItems() {
     const items = []
     const lanes = [-1, 0, 1]
 
-    // Shuffle lanes to randomize which ones get items
+    // Shuffle lanes
     for (let i = lanes.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
         [lanes[i], lanes[j]] = [lanes[j], lanes[i]];
     }
 
-    // Decide how many obstacles (Tree/Rock) to spawn. Max 2 to ensure 1 lane is always passable.
     const maxObstacles = 2
     let obstacleCount = 0
 
@@ -24,24 +24,23 @@ function randomItems() {
         const r = Math.random()
         const zOffset = Math.random() * (SEGMENT_LENGTH - 4) - (SEGMENT_LENGTH / 2 - 2)
 
-        // 30% chance - Nothing
-        // 20% chance - Gift
-        // 50% chance - Obstacle (if limit not reached)
-
-        if (r < 0.3) {
+        if (r < 0.2) {
             // Nothing
-        } else if (r < 0.5) {
+        } else if (r < 0.45) {
             items.push({ id: Math.random(), lane, zOffset, type: 'gift', collected: false })
+        } else if (r < 0.5) {
+            items.push({ id: Math.random(), lane, zOffset, type: 'ability', collected: false })
         } else {
             if (obstacleCount < maxObstacles) {
-                const type = Math.random() > 0.5 ? 'tree' : 'rock'
+                const rand = Math.random()
+                // Removed 'tree' as it's now environmental
+                let type = 'snowman'
+                if (rand < 0.33) type = 'snowman'
+                else if (rand < 0.66) type = 'rock'
+                else type = 'arch'
+
                 items.push({ id: Math.random(), lane, zOffset, type, collected: false })
                 obstacleCount++
-            } else {
-                // Determine fallback if limit reached (nothing or gift)
-                if (Math.random() > 0.5) {
-                    items.push({ id: Math.random(), lane, zOffset, type: 'gift', collected: false })
-                }
             }
         }
     })
@@ -49,16 +48,38 @@ function randomItems() {
     return items
 }
 
-const TrackSegment = forwardRef(({ index, items, leftMtnRot, rightMtnRot }, ref) => {
+const TrackSegment = memo(forwardRef(({ index, items, leftMtnRot, rightMtnRot, biome }, ref) => {
     return (
         <group ref={ref}>
-            {/* Mountains */}
-            <MountainSide position={[-18, 0, 0]} rotation={leftMtnRot} />
-            <MountainSide position={[18, 0, 0]} rotation={rightMtnRot} />
+            {/* Environment Side Decorations */}
+            {biome === 'mountain' && (
+                <>
+                    <MountainSide position={[-17, 0, 0]} rotation={leftMtnRot} />
+                    <MountainSide position={[17, 0, 0]} rotation={rightMtnRot} />
+                </>
+            )}
+            {biome === 'forest' && (
+                <>
+                    <ForestSide position={[-10, 0, 0]} rotation={[0, 0, 0]} scale={[-1, 1, 1]} />
+                    <ForestSide position={[10, 0, 0]} rotation={[0, 0, 0]} />
+                </>
+            )}
+            {biome === 'candy' && (
+                <>
+                    <CandySide position={[-10, 0, 0]} rotation={[0, 0, 0]} scale={[-1, 1, 1]} />
+                    <CandySide position={[10, 0, 0]} rotation={[0, 0, 0]} />
+                </>
+            )}
+            {biome === 'icy-peaks' && (
+                <>
+                    <MountainPeakSide position={[-21, 0, 0]} rotation={leftMtnRot} />
+                    <MountainPeakSide position={[21, 0, 0]} rotation={rightMtnRot} />
+                </>
+            )}
 
             {/* Snow Floor */}
             <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
-                <planeGeometry args={[40, SEGMENT_LENGTH]} />
+                <planeGeometry args={[60, SEGMENT_LENGTH]} />
                 <meshStandardMaterial color="#fff" roughness={1} />
             </mesh>
 
@@ -68,38 +89,43 @@ const TrackSegment = forwardRef(({ index, items, leftMtnRot, rightMtnRot }, ref)
                 const pos = [item.lane * LANE_WIDTH, 0, item.zOffset]
                 return (
                     <group key={item.id} position={pos}>
-                        {item.type === 'tree' && <Tree position={[0, 0, 0]} />}
+                        {item.type === 'snowman' && <Snowman position={[0, 0, 0]} />}
                         {item.type === 'rock' && <Rock position={[0, 0, 0]} />}
+                        {item.type === 'arch' && <CandyCaneArch position={[0, 0, 0]} />}
+                        {item.type === 'ability' && <AbilityBox position={[0, 0, 0]} />}
                         {item.type === 'gift' && <Gift position={[0, 0, 0]} />}
                     </group>
                 )
             })}
         </group>
     )
+}), (prev, next) => {
+    // Only re-render if index changes (recycle) or biome changes or items were collected
+    return (
+        prev.index === next.index &&
+        prev.biome === next.biome &&
+        prev.items.filter(i => i.collected).length === next.items.filter(i => i.collected).length
+    )
 })
 
 export function Track() {
-    const { speed, isPlaying, isGameOver, increaseScore, endGame } = useStore()
-
-    // We maintain persistent objects for segments
+    const { speed, isPlaying, isGameOver, increaseScore, endGame, activateRandomPowerUp } = useStore()
     const segmentsRef = useRef([])
-
-    // Refs for the THREE.Group of each segment used for direct manipulation
     const groupRefs = useRef([])
-
-    // We need a forceUpdate to render new content when a segment recycles
     const [_, forceUpdate] = useState(0)
 
-    // Initialize segments once
     useMemo(() => {
         const initial = []
         for (let i = 0; i < SEGMENT_COUNT; i++) {
+            const biomes = ['mountain', 'forest', 'candy', 'icy-peaks']
+            const biomeIdx = Math.floor(i / 10) % biomes.length
             initial.push({
                 index: i,
                 z: -i * SEGMENT_LENGTH,
                 items: i < 3 ? [] : randomItems(),
                 leftMtnRot: [0, (Math.random() - 0.5) * 0.5, 0],
-                rightMtnRot: [0, (Math.random() - 0.5) * 0.5 + Math.PI, 0]
+                rightMtnRot: [0, (Math.random() - 0.5) * 0.5 + Math.PI, 0],
+                biome: biomes[biomeIdx]
             })
         }
         segmentsRef.current = initial
@@ -108,23 +134,22 @@ export function Track() {
     useFrame((state, delta) => {
         if (!isPlaying || isGameOver) return
 
-        const currentSpeed = speed
-        const moveAmount = currentSpeed * delta
-
+        const moveAmount = speed * delta
         let needsUpdate = false
 
         segmentsRef.current.forEach((seg, i) => {
-            // Move segment forward in data
             seg.z += moveAmount
-
-            // Direct DOM update (High Perf)
             if (groupRefs.current[i]) {
                 groupRefs.current[i].position.z = seg.z
             }
 
-            // Check if it passed the camera
             if (seg.z > SEGMENT_LENGTH) {
                 seg.z -= SEGMENT_COUNT * SEGMENT_LENGTH
+                seg.index += SEGMENT_COUNT
+
+                const biomes = ['mountain', 'forest', 'candy', 'icy-peaks']
+                seg.biome = biomes[Math.floor(seg.index / 10) % 4]
+
                 seg.items = randomItems()
                 seg.leftMtnRot = [0, (Math.random() - 0.5) * 0.5, 0]
                 seg.rightMtnRot = [0, (Math.random() - 0.5) * 0.5 + Math.PI, 0]
@@ -132,44 +157,74 @@ export function Track() {
             }
         })
 
-        if (needsUpdate) forceUpdate(n => n + 1)
-
-        // Collision Detection
-        const playerLane = useStore.getState().currentLane
+        const { playerX, magnetActive, isJumping, isDucking, hasShield } = useStore.getState()
 
         segmentsRef.current.forEach(seg => {
-            if (Math.abs(seg.z) > SEGMENT_LENGTH) return
+            if (Math.abs(seg.z) > SEGMENT_LENGTH + 10) return
 
             seg.items.forEach(item => {
                 if (item.collected) return
 
                 const itemZ = seg.z + item.zOffset
+                let itemX = item.lane * LANE_WIDTH
 
-                if (Math.abs(itemZ) < 0.8) {
-                    if (item.lane === playerLane) {
+                if (item.type === 'gift' && magnetActive && Math.abs(itemZ) < 15) {
+                    item.collected = true
+                    increaseScore()
+                    needsUpdate = true
+                    return
+                }
+
+                const zDist = Math.abs(itemZ)
+                const hitboxDepth = (item.type === 'gift' ? GIFT_HITBOX.depth : OBSTACLE_HITBOX.depth) / 2 + PLAYER_HITBOX.depth / 2
+
+                if (zDist < hitboxDepth) {
+                    const xDist = Math.abs(itemX - playerX)
+                    const hitboxWidth = (item.type === 'gift' ? GIFT_HITBOX.width : OBSTACLE_HITBOX.width) / 2 + PLAYER_HITBOX.width / 2
+
+                    if (xDist < hitboxWidth) {
                         if (item.type === 'gift') {
                             item.collected = true
                             increaseScore()
-                            forceUpdate(n => n + 1)
+                            needsUpdate = true
+                        } else if (item.type === 'ability') {
+                            if (isJumping) {
+                                item.collected = true
+                                activateRandomPowerUp()
+                                needsUpdate = true
+                            }
                         } else {
-                            endGame()
+                            if (item.type === 'rock' && isJumping) {
+                                // Safe
+                            } else if (item.type === 'arch' && isDucking) {
+                                // Safe
+                            } else if (hasShield) {
+                                item.collected = true
+                                useStore.getState().setShield(false)
+                                needsUpdate = true
+                            } else {
+                                endGame()
+                            }
                         }
                     }
                 }
             })
         })
+
+        if (needsUpdate) forceUpdate(n => n + 1)
     })
 
     return (
         <>
             {segmentsRef.current.map((seg, i) => (
                 <TrackSegment
-                    key={seg.index}
+                    key={i}
                     ref={el => groupRefs.current[i] = el}
                     index={seg.index}
                     items={seg.items}
                     leftMtnRot={seg.leftMtnRot}
                     rightMtnRot={seg.rightMtnRot}
+                    biome={seg.biome}
                 />
             ))}
         </>
