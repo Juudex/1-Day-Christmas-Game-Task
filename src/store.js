@@ -60,7 +60,7 @@ export const useStore = create((set) => ({
     }),
     endGame: () => set((state) => {
         if (!state.isGameOver) {
-            const audio = new Audio('/car-crash-sound-effect-376874.mp3')
+            const audio = new Audio(`${import.meta.env.BASE_URL}car-crash-sound-effect-376874.mp3`)
             audio.volume = 0.5
             audio.play().catch(e => console.warn(e))
 
@@ -73,7 +73,7 @@ export const useStore = create((set) => ({
         return { isPlaying: false, isGameOver: true, speed: 0 }
     }),
     increaseScore: (amount = 1) => set((state) => {
-        const audio = new Audio('/fart-5-228245.mp3')
+        const audio = new Audio(`${import.meta.env.BASE_URL}fart-5-228245.mp3`)
         audio.volume = 0.5
         audio.play().catch(e => console.warn(e))
 

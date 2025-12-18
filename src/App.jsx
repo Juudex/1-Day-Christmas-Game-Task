@@ -34,7 +34,7 @@ export default function App() {
 
   // Background Music
   useEffect(() => {
-    const bgm = new Audio('/Sleigh_Shenanigans.mp3')
+    const bgm = new Audio(`${import.meta.env.BASE_URL}Sleigh_Shenanigans.mp3`)
     bgm.loop = true
     bgm.volume = 0.4
 

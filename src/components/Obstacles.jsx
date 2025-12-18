@@ -5,7 +5,7 @@ import { useStore } from '../store'
 import { OBSTACLE_HITBOX, GIFT_HITBOX, ARCH_HITBOX, LANE_WIDTH } from '../constants'
 
 export function Snowman({ position }) {
-    const { scene } = useGLTF('/Snow_Man.glb')
+    const { scene } = useGLTF(`${import.meta.env.BASE_URL}Snow_Man.glb`)
 
     return (
         <group position={position}>
@@ -23,8 +23,8 @@ export function Snowman({ position }) {
 }
 
 export function ForestSide({ position, rotation, ...props }) {
-    const { scene: pine } = useGLTF('/Pine_Tree_with_Snow.glb')
-    const { scene: snowTree } = useGLTF('/Snow_Tree.glb')
+    const { scene: pine } = useGLTF(`${import.meta.env.BASE_URL}Pine_Tree_with_Snow.glb`)
+    const { scene: snowTree } = useGLTF(`${import.meta.env.BASE_URL}Snow_Tree.glb`)
 
     const treeData = [
         { type: 'pine', pos: [0, 0, 0], scale: 10.5, rot: 0 },
@@ -54,8 +54,8 @@ export function ForestSide({ position, rotation, ...props }) {
 }
 
 export function CandySide({ position, rotation, ...props }) {
-    const { scene: cane1 } = useGLTF('/Candy_cane.glb')
-    const { scene: cane2 } = useGLTF('/Candy_cane_(1).glb')
+    const { scene: cane1 } = useGLTF(`${import.meta.env.BASE_URL}Candy_cane.glb`)
+    const { scene: cane2 } = useGLTF(`${import.meta.env.BASE_URL}Candy_cane_(1).glb`)
 
     const caneData = [
         { type: 1, pos: [0, 0, 0], scale: 2.2, rot: 0.5 },
@@ -101,7 +101,7 @@ export function Rock({ position }) {
 }
 
 export function Gift({ position }) {
-    const { scene } = useGLTF('/Present.glb')
+    const { scene } = useGLTF(`${import.meta.env.BASE_URL}Present.glb`)
 
     return (
         <group position={[position[0], 0.5, position[2]]}>
@@ -120,7 +120,7 @@ export function Gift({ position }) {
 }
 
 export function MountainPeakSide({ position, rotation, ...props }) {
-    const { scene } = useGLTF('/Mountain_with_Snow.glb')
+    const { scene } = useGLTF(`${import.meta.env.BASE_URL}Mountain_with_Snow.glb`)
 
     return (
         <group position={position} rotation={rotation} {...props}>
@@ -132,7 +132,7 @@ export function MountainPeakSide({ position, rotation, ...props }) {
 }
 
 export function CandyCaneArch({ position }) {
-    const { scene } = useGLTF('/Candy_cane_(1).glb')
+    const { scene } = useGLTF(`${import.meta.env.BASE_URL}Candy_cane_(1).glb`)
 
     return (
         <group position={position}>
@@ -150,7 +150,7 @@ export function CandyCaneArch({ position }) {
 }
 
 export function AbilityBox({ position }) {
-    const { scene } = useGLTF('/Present.glb')
+    const { scene } = useGLTF(`${import.meta.env.BASE_URL}Present.glb`)
     const group = useRef()
 
     useFrame((state) => {
@@ -224,7 +224,7 @@ export function Magnet({ position }) {
 }
 
 export function MountainSide({ position, rotation }) {
-    const { scene } = useGLTF('/Mountain.glb')
+    const { scene } = useGLTF(`${import.meta.env.BASE_URL}Mountain.glb`)
 
     return (
         <group position={position} rotation={rotation}>

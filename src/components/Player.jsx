@@ -13,7 +13,7 @@ export function Player() {
     const duckingTimeout = useRef()
 
     // Load Models
-    const santa = useGLTF('/Santa_Claus.glb')
+    const santa = useGLTF(`${import.meta.env.BASE_URL}Santa_Claus.glb`)
 
     // Handle Input
     useEffect(() => {
