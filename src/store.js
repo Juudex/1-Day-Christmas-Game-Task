@@ -1,5 +1,18 @@
 import { create } from 'zustand'
 
+// Pre-load audio to prevent memory spikes and lags when creating new instances
+const crashAudio = typeof Audio !== 'undefined' ? new Audio(`${import.meta.env.BASE_URL}car-crash-sound-effect-376874.mp3`) : null
+const collectAudio = typeof Audio !== 'undefined' ? new Audio(`${import.meta.env.BASE_URL}fart-5-228245.mp3`) : null
+
+if (crashAudio) crashAudio.volume = 0.5
+if (collectAudio) collectAudio.volume = 0.5
+
+const playAudio = (audio) => {
+    if (!audio) return
+    audio.currentTime = 0
+    audio.play().catch(() => { /* Silence browser policy errors */ })
+}
+
 export const useStore = create((set) => ({
     isPlaying: false,
     isGameOver: false,
@@ -35,10 +48,8 @@ export const useStore = create((set) => ({
         } else {
             const expiry = Date.now() + 10000
             set({ magnetActive: true, magnetExpiry: expiry })
-            // We use a timer for the internal state check, but magnetExpiry is for UI
             setTimeout(() => {
                 set((state) => {
-                    // Only deactivate if another magnet hasn't been picked up since
                     if (Date.now() >= state.magnetExpiry - 100) {
                         return { magnetActive: false, magnetExpiry: 0 }
                     }
@@ -60,11 +71,7 @@ export const useStore = create((set) => ({
     }),
     endGame: () => set((state) => {
         if (!state.isGameOver) {
-            const audio = new Audio(`${import.meta.env.BASE_URL}car-crash-sound-effect-376874.mp3`)
-            audio.volume = 0.5
-            audio.play().catch(e => console.warn(e))
-
-            // Check for new high score
+            playAudio(crashAudio)
             if (state.score > state.highScore) {
                 localStorage.setItem('santa-high-score', state.score.toString())
                 return { isPlaying: false, isGameOver: true, speed: 0, highScore: state.score }
@@ -73,12 +80,10 @@ export const useStore = create((set) => ({
         return { isPlaying: false, isGameOver: true, speed: 0 }
     }),
     increaseScore: (amount = 1) => set((state) => {
-        const audio = new Audio(`${import.meta.env.BASE_URL}fart-5-228245.mp3`)
-        audio.volume = 0.5
-        audio.play().catch(e => console.warn(e))
-
+        playAudio(collectAudio)
         const newScore = state.score + amount
         const newSpeed = state.speed + 0.5
+
 
         let newHighScore = state.highScore
         if (newScore > state.highScore) {
@@ -100,3 +105,4 @@ export const useStore = create((set) => ({
     debugMode: false,
     toggleDebug: () => set((state) => ({ debugMode: !state.debugMode })),
 }))
+

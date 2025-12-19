@@ -4,6 +4,7 @@ import { useStore } from '../store'
 import { Rock, Snowman, CandyCaneArch, Gift, AbilityBox, MountainSide, ForestSide, CandySide, MountainPeakSide } from './Obstacles'
 import { SEGMENT_LENGTH, LANE_WIDTH, PLAYER_HITBOX, OBSTACLE_HITBOX, GIFT_HITBOX, ARCH_HITBOX } from '../constants'
 import { lerp } from 'three/src/math/MathUtils'
+import * as THREE from 'three'
 
 const SEGMENT_COUNT = 10
 
@@ -48,6 +49,9 @@ function randomItems() {
     return items
 }
 
+const snowGeometry = new THREE.PlaneGeometry(60, SEGMENT_LENGTH)
+const snowMaterial = new THREE.MeshStandardMaterial({ color: "#fff", roughness: 1 })
+
 const TrackSegment = memo(forwardRef(({ index, items, leftMtnRot, rightMtnRot, biome }, ref) => {
     return (
         <group ref={ref}>
@@ -77,15 +81,12 @@ const TrackSegment = memo(forwardRef(({ index, items, leftMtnRot, rightMtnRot, b
                 </>
             )}
 
-            {/* Snow Floor */}
-            <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
-                <planeGeometry args={[60, SEGMENT_LENGTH]} />
-                <meshStandardMaterial color="#fff" roughness={1} />
-            </mesh>
+            {/* Snow Floor - Reusing resources */}
+            <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow geometry={snowGeometry} material={snowMaterial} />
+
 
             {/* Items */}
             {items.map((item, idx) => {
-                if (item.collected) return null
                 const pos = [item.lane * LANE_WIDTH, 0, item.zOffset]
                 return (
                     <group key={item.id} position={pos}>
@@ -93,7 +94,7 @@ const TrackSegment = memo(forwardRef(({ index, items, leftMtnRot, rightMtnRot, b
                         {item.type === 'rock' && <Rock position={[0, 0, 0]} />}
                         {item.type === 'arch' && <CandyCaneArch position={[0, 0, 0]} />}
                         {item.type === 'ability' && <AbilityBox position={[0, 0, 0]} />}
-                        {item.type === 'gift' && <Gift position={[0, 0, 0]} />}
+                        {item.type === 'gift' && <Gift position={[0, 0, 0]} collected={item.collected} collectedAt={item.collectedAt} />}
                     </group>
                 )
             })}
@@ -109,12 +110,18 @@ const TrackSegment = memo(forwardRef(({ index, items, leftMtnRot, rightMtnRot, b
 })
 
 export function Track() {
-    const { speed, isPlaying, isGameOver, increaseScore, endGame, activateRandomPowerUp } = useStore()
+    const isPlaying = useStore(state => state.isPlaying)
+    const isGameOver = useStore(state => state.isGameOver)
+    const gameId = useStore(state => state.gameId)
+    const increaseScore = useStore(state => state.increaseScore)
+    const endGame = useStore(state => state.endGame)
+    const activateRandomPowerUp = useStore(state => state.activateRandomPowerUp)
+
     const segmentsRef = useRef([])
     const groupRefs = useRef([])
     const [_, forceUpdate] = useState(0)
 
-    useMemo(() => {
+    const resetSegments = () => {
         const initial = []
         for (let i = 0; i < SEGMENT_COUNT; i++) {
             const biomes = ['mountain', 'forest', 'candy', 'icy-peaks']
@@ -129,11 +136,20 @@ export function Track() {
             })
         }
         segmentsRef.current = initial
-    }, [])
+        forceUpdate(n => n + 1)
+    }
+
+    // Initial setup
+    useEffect(() => {
+        resetSegments()
+    }, [gameId])
+
 
     useFrame((state, delta) => {
         if (!isPlaying || isGameOver) return
 
+        const store = useStore.getState()
+        const speed = store.speed
         const moveAmount = speed * delta
         let needsUpdate = false
 
@@ -157,7 +173,7 @@ export function Track() {
             }
         })
 
-        const { playerX, magnetActive, isJumping, isDucking, hasShield } = useStore.getState()
+        const { playerX, magnetActive, isJumping, isDucking, hasShield } = store
 
         segmentsRef.current.forEach(seg => {
             if (Math.abs(seg.z) > SEGMENT_LENGTH + 10) return
@@ -165,11 +181,12 @@ export function Track() {
             seg.items.forEach(item => {
                 if (item.collected) return
 
-                const itemZ = seg.z + item.zOffset
+                const itemZ = seg.z + item.zOffset + (item.type === 'arch' ? 4 : 0) + (item.type === 'gift' ? 2 : 0)
                 let itemX = item.lane * LANE_WIDTH
 
                 if (item.type === 'gift' && magnetActive && Math.abs(itemZ) < 15) {
                     item.collected = true
+                    item.collectedAt = Date.now()
                     increaseScore()
                     needsUpdate = true
                     return
@@ -185,6 +202,7 @@ export function Track() {
                     if (xDist < hitboxWidth) {
                         if (item.type === 'gift') {
                             item.collected = true
+                            item.collectedAt = Date.now()
                             increaseScore()
                             needsUpdate = true
                         } else if (item.type === 'ability') {
@@ -213,6 +231,7 @@ export function Track() {
 
         if (needsUpdate) forceUpdate(n => n + 1)
     })
+
 
     return (
         <>

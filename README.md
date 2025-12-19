@@ -1,54 +1,69 @@
-# Santa's Sled Slide 🎅🛷
+# North Pole Rush 🎅🏔️
 
-Ho Ho Ho! Welcome to **Santa's Sled Slide**, a festive 3D endless runner game built with React Three Fiber.
-Slide down the snowy mountain, collect gifts, and avoid the obstacles!
+Welcome to **North Pole Rush**, a high-performance 3D endless runner game built with React Three Fiber.
+Race through the Arctic trail, collect gifts, and test your reflexes as the speed increases!
 
 ## 🎮 How to Play
 
-- **Move Left/Right**: Use `Arrow Keys` or `A` / `D`.
-- **Goal**: Collect as many **Yellow Gifts** 🎁 as possible.
-- **Fail Condition**: Don't hit the **Trees** 🎄 or **Snowmen** ⛄!
-- **Difficulty**: The game gets faster the more gifts you collect! 🚀
+- **Controls**: Use `Arrow Keys`, `WASD`, or `Space` to navigate
+- **Goal**: Collect as many **Gifts** 🎁 as possible while avoiding obstacles
+- **Speed**: The game accelerates by 0.5 units with each gift collected
+- **Power-Ups**: Jump to collect ability boxes for shields or magnets
 
 ## 🛠️ Controls
 
 | Key | Action |
 | :--- | :--- |
-| **Space** / **Button** | Start / Restart Game |
 | **Left Arrow** / **A** | Move Left |
 | **Right Arrow** / **D** | Move Right |
+| **Up Arrow** / **W** / **Space** | Jump |
+| **Down Arrow** / **S** | Duck |
 | **i** | Toggle Debug Mode (FPS & Hitboxes) |
 
 ## ✨ Features
 
-- **Infinite Terrain**: Procedurally generated mountain track.
-- **Dynamic Difficulty**: Speed increases as your score grows.
-- **3D Graphics**: Built with `three.js` and `@react-three/drei`.
+- **4 Unique Biomes**: Mountain, Forest, Candy Land, and Icy Peaks
+- **Dynamic Day/Night Cycle**: Atmospheric lighting changes throughout gameplay
+- **Power-Up System**:
+  - 🛡️ **Shield**: Protects from one collision
+  - 🧲 **Magnet (10s)**: Auto-collect nearby gifts
+- **Performance Optimized**:
+  - Zero-allocation object pooling
+  - GPU-accelerated particle effects
+  - Pre-compiled shader warmup
+  - Persistent engine architecture
 - **Sound Effects**:
   - 🎵 Background Music: "Sleigh Shenanigans"
-  - 🔊 Pickup Sound: "Fart-5" (Santa is lactose intolerant?)
-  - 💥 Crash Sound: Realistic car crash
+  - 🔊 Collection & Crash Sounds
 - **Visual Effects**:
-  - ❄️ Heavy Snowfall Particle System
-  - ✨ Sled Snow Trail
-  - ☀️ Bright Winter Day Atmosphere
+  - ❄️ 2500 Procedural Snowflakes
+  - 🌅 Dynamic Time-of-Day Lighting
 
 ## 🔧 Debug Mode
 
 Press **`i`** to toggle:
 - **FPS Counter** (Top Right)
 - **Collision Hitboxes**:
-  - 🟩 Green: Player
-  - 🟥 Red: Obstacles (Trees/Rocks)
+  - 🟥 Red: Obstacles (Snowmen/Rocks/Arches)
   - 🟨 Yellow: Collectibles (Gifts)
-  - 🟦 Blue: Mountain Environment Areas
+  - 🟦 Blue: Environment Decorations
 
 ## 📦 Tech Stack
 
-- [React](https://reactjs.org/)
-- [Vite](https://vitejs.dev/)
-- [React Three Fiber](https://docs.pmnd.rs/react-three-fiber)
+- [React](https://reactjs.org/) + [Vite](https://vitejs.dev/)
+- [React Three Fiber](https://docs.pmnd.rs/react-three-fiber) (Three.js)
 - [Zustand](https://github.com/pmndrs/zustand) (State Management)
+- [React Three Drei](https://github.com/pmndrs/drei) (3D Helpers)
+
+## 🚀 Performance
+
+This game implements professional-grade optimization techniques:
+- Shader pre-compilation and GPU warming
+- Material and geometry pooling
+- Atomic state selectors to minimize React re-renders
+- Static shadow maps
+- Non-destructive component persistence
 
 ---
-*Merry Christmas & Happy Coding!* 🎄
+*Best experienced on Chrome/Edge* ⚡
+

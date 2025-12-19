@@ -1,22 +1,48 @@
-import { useRef } from 'react'
+import { useRef, useMemo } from 'react'
 import { useFrame } from '@react-three/fiber'
-import { useGLTF, Center, Clone } from '@react-three/drei'
+import { useGLTF, Center } from '@react-three/drei'
 import { useStore } from '../store'
-import { OBSTACLE_HITBOX, GIFT_HITBOX, ARCH_HITBOX, LANE_WIDTH } from '../constants'
+import { OBSTACLE_HITBOX, GIFT_HITBOX, ARCH_HITBOX } from '../constants'
+import * as THREE from 'three'
+
+// Shared materials to minimize shader programs
+const debugMaterial = new THREE.MeshStandardMaterial({ color: "red", wireframe: true, transparent: true, opacity: 0.5 })
+const snowMaterial = new THREE.MeshStandardMaterial({ color: "#fff", roughness: 0.8 })
+const magnetRedMaterial = new THREE.MeshStandardMaterial({ color: "red" })
+const magnetWhiteMaterial = new THREE.MeshStandardMaterial({ color: "white" })
+const shieldMaterial = new THREE.MeshStandardMaterial({ color: "#00ffff", emissive: "#00ffff", emissiveIntensity: 1 })
+
+// Shared geometries
+const debugBoxGeometry = new THREE.BoxGeometry(1, 1, 1)
+const rockGeometry = new THREE.DodecahedronGeometry(1.5, 0)
+const shieldGeometry = new THREE.OctahedronGeometry(0.5, 0)
+const magnetCylinderGeometry = new THREE.CylinderGeometry(0.1, 0.1, 0.6)
+const magnetCylinderSmallGeometry = new THREE.CylinderGeometry(0.1, 0.1, 0.4)
+
+function setupModel(scene) {
+    const clone = scene.clone()
+    clone.traverse(node => {
+        if (node.isMesh) {
+            node.castShadow = false
+            node.receiveShadow = false
+        }
+    })
+    return clone
+}
 
 export function Snowman({ position }) {
     const { scene } = useGLTF(`${import.meta.env.BASE_URL}Snow_Man.glb`)
+    const model = useMemo(() => setupModel(scene), [scene])
 
     return (
         <group position={position}>
             {useStore(state => state.debugMode) && (
-                <mesh position={[0, 0.75, 0]}>
+                <mesh position={[0, 0.75, 0]} material={debugMaterial}>
                     <boxGeometry args={[OBSTACLE_HITBOX.width, 1.5, OBSTACLE_HITBOX.depth]} />
-                    <meshStandardMaterial color="red" wireframe transparent opacity={0.5} />
                 </mesh>
             )}
             <Center top>
-                <Clone object={scene} scale={1.5} rotation={[0, -Math.PI / 2, 0]} />
+                <primitive object={model} scale={1.5} rotation={[0, -Math.PI / 2, 0]} />
             </Center>
         </group>
     )
@@ -38,15 +64,20 @@ export function ForestSide({ position, rotation, ...props }) {
         { type: 'pine', pos: [13, 0, 5], scale: 11.0, rot: 0.3 },
     ]
 
+    const models = useMemo(() => treeData.map(t => ({
+        ...t,
+        clone: setupModel(t.type === 'pine' ? pine : snowTree)
+    })), [pine, snowTree])
+
     return (
         <group position={position} rotation={rotation} {...props}>
-            {treeData.map((t, i) => (
-                <Clone
+            {models.map((m, i) => (
+                <primitive
                     key={i}
-                    object={t.type === 'pine' ? pine : snowTree}
-                    scale={t.scale}
-                    position={t.pos}
-                    rotation={[0, t.rot, 0]}
+                    object={m.clone}
+                    scale={m.scale}
+                    position={m.pos}
+                    rotation={[0, m.rot, 0]}
                 />
             ))}
         </group>
@@ -67,15 +98,20 @@ export function CandySide({ position, rotation, ...props }) {
         { type: 1, pos: [12, 0, 4], scale: 3.5, rot: 1.5 },
     ]
 
+    const models = useMemo(() => caneData.map(c => ({
+        ...c,
+        clone: setupModel(c.type === 1 ? cane1 : cane2)
+    })), [cane1, cane2])
+
     return (
         <group position={position} rotation={rotation} {...props}>
-            {caneData.map((c, i) => (
-                <Clone
+            {models.map((m, i) => (
+                <primitive
                     key={i}
-                    object={c.type === 1 ? cane1 : cane2}
-                    scale={c.scale}
-                    position={c.pos}
-                    rotation={[0, c.rot, 0]}
+                    object={m.clone}
+                    scale={m.scale}
+                    position={m.pos}
+                    rotation={[0, m.rot, 0]}
                 />
             ))}
         </group>
@@ -83,49 +119,66 @@ export function CandySide({ position, rotation, ...props }) {
 }
 
 export function Rock({ position }) {
-    // Simple Rock mesh as we don't have a GLB for it
     return (
         <group position={position}>
             {useStore(state => state.debugMode) && (
-                <mesh position={[0, 0.4, 0]}>
+                <mesh position={[0, 0.4, 0]} material={debugMaterial}>
                     <boxGeometry args={[OBSTACLE_HITBOX.width, 0.9, OBSTACLE_HITBOX.depth]} />
-                    <meshStandardMaterial color="orange" wireframe transparent opacity={0.5} />
                 </mesh>
             )}
-            <mesh position={[0, 0.45, 0]}>
-                <dodecahedronGeometry args={[1.5, 0]} />
-                <meshStandardMaterial color="#fff" roughness={0.8} />
-            </mesh>
+            <mesh position={[0, 0.45, 0]} geometry={rockGeometry} material={snowMaterial} />
         </group>
     )
 }
 
-export function Gift({ position }) {
+export function Gift({ position, collected, collectedAt }) {
     const { scene } = useGLTF(`${import.meta.env.BASE_URL}Present.glb`)
+    const model = useMemo(() => setupModel(scene), [scene])
+    const groupRef = useRef()
+
+    useFrame((state) => {
+        if (collected && collectedAt && groupRef.current) {
+            const elapsed = (Date.now() - collectedAt) / 1000 // seconds
+            const animDuration = 0.6
+
+            if (elapsed < animDuration) {
+                const progress = elapsed / animDuration
+                // Float up
+                groupRef.current.position.y = 0.5 + progress * 3
+                // Spin
+                groupRef.current.rotation.y = progress * Math.PI * 4
+                // Scale down
+                groupRef.current.scale.setScalar(1.5 * (1 - progress))
+            } else {
+                // Hide after animation
+                groupRef.current.visible = false
+            }
+        }
+    })
 
     return (
-        <group position={[position[0], 0.5, position[2]]}>
-            {useStore(state => state.debugMode) && (
-                <mesh position={[0, 0, 0]}>
+        <group ref={groupRef} position={[position[0], 0.5, position[2]]}>
+            {useStore(state => state.debugMode) && !collected && (
+                <mesh position={[0, 0, 0]} material={debugMaterial}>
                     <boxGeometry args={[GIFT_HITBOX.width, 1, GIFT_HITBOX.depth]} />
-                    <meshStandardMaterial color="yellow" wireframe transparent opacity={0.5} />
                 </mesh>
             )}
             <Center>
-                <Clone object={scene} scale={1.5} />
+                <primitive object={model} scale={1.5} />
             </Center>
-            <pointLight intensity={2} color="#ffd700" distance={4} />
+            {/* Subtle glow for visibility at night */}
         </group>
     )
 }
 
 export function MountainPeakSide({ position, rotation, ...props }) {
     const { scene } = useGLTF(`${import.meta.env.BASE_URL}Mountain_with_Snow.glb`)
+    const model = useMemo(() => setupModel(scene), [scene])
 
     return (
         <group position={position} rotation={rotation} {...props}>
             <Center>
-                <Clone object={scene} scale={65} />
+                <primitive object={model} scale={65} />
             </Center>
         </group>
     )
@@ -133,17 +186,17 @@ export function MountainPeakSide({ position, rotation, ...props }) {
 
 export function CandyCaneArch({ position }) {
     const { scene } = useGLTF(`${import.meta.env.BASE_URL}Candy_cane_(1).glb`)
+    const model = useMemo(() => setupModel(scene), [scene])
 
     return (
         <group position={position}>
             {useStore(state => state.debugMode) && (
-                <mesh position={[0, ARCH_HITBOX.height / 2 + 1, 0]}>
+                <mesh position={[0, ARCH_HITBOX.height / 2 + 1, 4]} material={debugMaterial}>
                     <boxGeometry args={[ARCH_HITBOX.width, 1, ARCH_HITBOX.depth]} />
-                    <meshStandardMaterial color="purple" wireframe transparent opacity={0.5} />
                 </mesh>
             )}
-            <group position={[0, -3.5, 0]} rotation={[0, 0, 0]}>
-                <Clone object={scene} scale={1.5} />
+            <group position={[0, -6, 0]} rotation={[0, 0, 0]}>
+                <primitive object={model} scale={2.25} />
             </group>
         </group >
     )
@@ -151,6 +204,7 @@ export function CandyCaneArch({ position }) {
 
 export function AbilityBox({ position }) {
     const { scene } = useGLTF(`${import.meta.env.BASE_URL}Present.glb`)
+    const model = useMemo(() => setupModel(scene), [scene])
     const group = useRef()
 
     useFrame((state) => {
@@ -163,16 +217,15 @@ export function AbilityBox({ position }) {
     return (
         <group position={position}>
             {useStore(state => state.debugMode) && (
-                <mesh position={[0, 2.5, 0]}>
+                <mesh position={[0, 2.5, 0]} material={debugMaterial}>
                     <boxGeometry args={[1, 1, 1]} />
-                    <meshStandardMaterial color="cyan" wireframe transparent opacity={0.5} />
                 </mesh>
             )}
+
             <group ref={group} position={[0, 2.5, 0]}>
                 <Center>
-                    <Clone object={scene} scale={0.7} />
+                    <primitive object={model} scale={0.7} />
                 </Center>
-                <pointLight intensity={2} color="cyan" distance={3} />
             </group>
         </group>
     )
@@ -182,15 +235,11 @@ export function Shield({ position }) {
     return (
         <group position={position}>
             {useStore(state => state.debugMode) && (
-                <mesh position={[0, 0.5, 0]}>
+                <mesh position={[0, 0.5, 0]} material={debugMaterial}>
                     <boxGeometry args={[1, 1, 1]} />
-                    <meshStandardMaterial color="blue" wireframe transparent opacity={0.5} />
                 </mesh>
             )}
-            <mesh position={[0, 0.5, 0]} castShadow>
-                <octahedronGeometry args={[0.5, 0]} />
-                <meshStandardMaterial color="#00ffff" emissive="#00ffff" emissiveIntensity={1} />
-            </mesh>
+            <mesh position={[0, 0.5, 0]} geometry={shieldGeometry} material={shieldMaterial} />
         </group>
     )
 }
@@ -199,25 +248,14 @@ export function Magnet({ position }) {
     return (
         <group position={position}>
             {useStore(state => state.debugMode) && (
-                <mesh position={[0, 0.5, 0]}>
+                <mesh position={[0, 0.5, 0]} material={debugMaterial}>
                     <boxGeometry args={[1, 1, 1]} />
-                    <meshStandardMaterial color="red" wireframe transparent opacity={0.5} />
                 </mesh>
             )}
-            {/* Simple Magnet shape */}
             <group position={[0, 0.5, 0]} rotation={[Math.PI / 2, 0, 0]}>
-                <mesh position={[-0.2, 0, 0]}>
-                    <cylinderGeometry args={[0.1, 0.1, 0.6]} />
-                    <meshStandardMaterial color="red" />
-                </mesh>
-                <mesh position={[0.2, 0, 0]}>
-                    <cylinderGeometry args={[0.1, 0.1, 0.6]} />
-                    <meshStandardMaterial color="red" />
-                </mesh>
-                <mesh position={[0, 0.3, 0]} rotation={[0, 0, Math.PI / 2]}>
-                    <cylinderGeometry args={[0.1, 0.1, 0.4]} />
-                    <meshStandardMaterial color="white" />
-                </mesh>
+                <mesh position={[-0.2, 0, 0]} geometry={magnetCylinderGeometry} material={magnetRedMaterial} />
+                <mesh position={[0.2, 0, 0]} geometry={magnetCylinderGeometry} material={magnetRedMaterial} />
+                <mesh position={[0, 0.3, 0]} rotation={[0, 0, Math.PI / 2]} geometry={magnetCylinderSmallGeometry} material={magnetWhiteMaterial} />
             </group>
         </group>
     )
@@ -225,18 +263,19 @@ export function Magnet({ position }) {
 
 export function MountainSide({ position, rotation }) {
     const { scene } = useGLTF(`${import.meta.env.BASE_URL}Mountain.glb`)
+    const model = useMemo(() => setupModel(scene), [scene])
 
     return (
         <group position={position} rotation={rotation}>
             {useStore(state => state.debugMode) && (
-                <mesh position={[0, 10, 0]}>
+                <mesh position={[0, 10, 0]} material={debugMaterial}>
                     <boxGeometry args={[10, 20, 10]} />
-                    <meshStandardMaterial color="blue" wireframe transparent opacity={0.5} />
                 </mesh>
             )}
             <Center>
-                <Clone object={scene} scale={10} />
+                <primitive object={model} scale={10} />
             </Center>
         </group>
     )
 }
+

@@ -4,11 +4,13 @@ import { useStore } from '../store'
 import * as THREE from 'three'
 
 export function Environment() {
-    const { timeOfDay, updateTime } = useStore()
+    const timeOfDay = useStore(state => state.timeOfDay)
+    const updateTime = useStore(state => state.updateTime)
 
     useFrame((state, delta) => {
         updateTime(delta)
     })
+
 
     const colors = {
         midnight: new THREE.Color('#02020a'),
@@ -59,10 +61,9 @@ export function Environment() {
         starsOpacity = p
     }
 
-    // Move sun based on time
-    const sunAngle = (timeOfDay / 24) * Math.PI * 2 - Math.PI / 2
-    const sunX = Math.cos(sunAngle) * 20
-    const sunY = Math.sin(sunAngle) * 20
+    // Static sun position for shadow map stability
+    // Moving the light position every frame forces shadow map recalculation
+    const staticSunPosition = [10, 20, 10]
 
     return (
         <>
@@ -71,16 +72,18 @@ export function Environment() {
 
             <ambientLight intensity={ambientIntensity} color="#ffffff" />
             <directionalLight
-                position={[sunX, sunY, 10]}
+                position={staticSunPosition}
                 intensity={sunIntensity}
                 castShadow
-                shadow-mapSize={[1024, 1024]}
+                shadow-mapSize={[512, 512]}
                 shadow-camera-left={-20}
                 shadow-camera-right={20}
                 shadow-camera-top={20}
                 shadow-camera-bottom={-20}
-                shadow-bias={-0.001}
+                shadow-bias={-0.0001}
             />
+
+
 
             {starsOpacity > 0.01 && (
                 <>
